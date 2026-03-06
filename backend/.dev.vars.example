@@ -1,0 +1,26 @@
+# .dev.vars — Cloudflare Workers local development secrets
+# ──────────────────────────────────────────────────────────
+# Copy this file to .dev.vars and fill in real values.
+# .dev.vars is gitignored and MUST never be committed.
+#
+# Wrangler reads this file automatically when you run: npm run dev
+# For production, set secrets via: wrangler secret put <KEY>
+
+# Neon Postgres connection string
+# Get this from: https://console.neon.tech → your project → Connection string
+DATABASE_URL="postgresql://<user>:<password>@<host>.neon.tech/<dbname>?sslmode=require"
+
+# Static Bearer tokens for each tenant.
+# Use any strong random string — for example:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+#
+# Clients authenticate by sending:
+#   Authorization: Bearer <token>
+TENANT_A_TOKEN="replace-with-a-strong-random-secret-for-tenant-a"
+TENANT_B_TOKEN="replace-with-a-strong-random-secret-for-tenant-b"
+
+# Allowed CORS origin — the URL of the frontend app.
+# Local development: matches the Vite dev server default port.
+# Production: set this to your deployed frontend URL (e.g. https://app.example.com).
+# If not set, the backend defaults to allowing all origins (*).
+ALLOWED_ORIGIN="http://localhost:5173"

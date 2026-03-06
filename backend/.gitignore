@@ -1,0 +1,26 @@
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Wrangler ─────────────────────────────────────────────────────────────────
+.wrangler/
+dist/
+
+# ── Local secrets (NEVER commit this file) ───────────────────────────────────
+# Contains DATABASE_URL, TENANT_A_TOKEN, TENANT_B_TOKEN for local dev.
+# Use .dev.vars.example as a reference to create your own copy.
+.dev.vars
+
+# ── Environment files ─────────────────────────────────────────────────────────
+.env
+.env.local
+
+# ── OS / Editor artifacts ────────────────────────────────────────────────────
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── TypeScript build output ───────────────────────────────────────────────────
+*.js.map
+*.d.ts

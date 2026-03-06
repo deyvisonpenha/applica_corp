@@ -1,0 +1,12 @@
+name = "applica-corp-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Non-secret environment variables can go here
+# Secrets (DATABASE_URL, tokens) must be set via: wrangler secret put <KEY>
+
+[[migrations]]
+tag = "v1"
+new_classes = []

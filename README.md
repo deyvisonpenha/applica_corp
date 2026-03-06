@@ -308,3 +308,33 @@ curl http://localhost:8787/health
 ### General
 - No test suite is included. The codebase is structured to make unit testing straightforward — API functions, query hooks, and components are each independently importable with no hidden global state.
 - CORS is configured via Hono's built-in `cors` middleware, mounted as the very first handler so it intercepts `OPTIONS` preflight requests before the auth middleware runs (a preflight carries no `Authorization` header and would otherwise return `401`). The allowed origin is driven by the `ALLOWED_ORIGIN` environment variable and falls back to `*` when not set — acceptable here because authentication is enforced by Bearer tokens, not by origin. For production, set `ALLOWED_ORIGIN` to the exact frontend URL via `wrangler secret put ALLOWED_ORIGIN`.
+
+---
+
+## Challenge questions
+
+### 1. How would you approach implementing DMARC and DKIM configuration for a platform hosted on Cloudflare? What is the purpose of each?
+
+Both live as DNS TXT records. Cloudflare's proxy does not touch email traffic, so this is purely DNS configuration inside the Cloudflare dashboard.
+
+**DKIM** proves an email genuinely came from your domain and was not altered in transit. Your email provider (SendGrid, Postmark, etc.) generates a private/public key pair. The private key signs outgoing mail, and you publish the public key as a `TXT` record (e.g. `mail._domainkey.yourdomain.com`). Receiving servers then verify the signature against that record.
+
+**DMARC** is the policy layer. It tells receiving servers what to do when DKIM or SPF fails, with three options: `none` (monitor only), `quarantine` (send to spam folder), or `reject` (drop the message entirely). It also specifies a `rua` address to receive aggregate reports, giving you visibility into who is sending mail on behalf of your domain. The right approach is to start with `p=none` to observe legitimate sending sources, then tighten to `reject` once all of them are confirmed.
+
+---
+
+### 2. A user reports they can see tasks that don't belong to them. Walk us through how you would debug and fix this in a multi-tenant system.
+
+First, try to reproduce it with the exact tenant credentials the user reported. The goal is to confirm it is a real data leak and not a UI caching artifact. TanStack Query keys results by tenant, so if the `queryKey` was wrong, it could serve stale data from a previous tenant selection without ever making a bad request to the server.
+
+If confirmed at the network level, move to the query layer immediately. The bug is almost certainly one of three things: the `WHERE tenant_id = ?` clause is missing on a code path, `c.get('tenant_id')` is returning an incorrect value from the auth middleware, or a missing `await` is causing the wrong context to be used. Adding structured logging to capture `tenant_id` and the raw SQL parameters on every request, then replaying the failing scenario, will isolate which one it is.
+
+Beyond correcting the query, the right fix is adding **Postgres Row-Level Security** as a hard backstop. RLS enforces isolation at the database engine level regardless of application logic, so even a future regression cannot leak data across tenants.
+
+---
+
+### 3. What would your automated daily database backup strategy look like for a Neon Postgres database? How would you verify it is working?
+
+Neon provides continuous WAL-based backups with point-in-time recovery out of the box, and that is the foundation. On top of that, a nightly `pg_dump` should run via a scheduled Cloudflare Worker (Cron Job to be at the same environment) or a GitHub Actions workflow, piping the output compressed to **Cloudflare R2** (or S3) with a date-stamped key and object versioning enabled. Retention policy: 30 daily snapshots and 12 monthly snapshots, with older ones automatically expired via a lifecycle rule.
+
+Verification is what most teams skip. A weekly automated restore job should run in an isolated environment: spin up a throwaway Neon branch, restore the latest dump into it, run a row count check against known seed data, then tear it down. If the restore job fails or the counts are off, an alert fires. A backup you have never restored is not a backup; it is a hypothesis.
